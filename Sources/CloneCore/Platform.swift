@@ -30,9 +30,12 @@ public enum Inspector {
     }
     public static func inspect(_ url: URL) throws -> AppInfo {
         let metadata = try Plist.read(url.appendingPathComponent("Contents/Info.plist"))
+        // CFBundleExecutable is optional; macOS falls back to the bundle name when absent (e.g. Muse/Endo).
+        let exeName = metadata["CFBundleExecutable"] as? String ?? url.deletingPathExtension().lastPathComponent
         guard url.pathExtension == "app", let id = metadata["CFBundleIdentifier"] as? String,
-              let exe = metadata["CFBundleExecutable"] as? String, !exe.contains("/"), exe != "..",
-              FileManager.default.isExecutableFile(atPath: url.appendingPathComponent("Contents/MacOS/" + exe).path) else { throw CloneFailure.invalid("请选择有效的 macOS .app 应用（不支持 iOS 包装应用）") }
+              !exeName.contains("/"), exeName != "..",
+              FileManager.default.isExecutableFile(atPath: url.appendingPathComponent("Contents/MacOS/" + exeName).path) else { throw CloneFailure.invalid("请选择有效的 macOS .app 应用（不支持 iOS 包装应用）") }
+        let exe = exeName
         let binary = url.appendingPathComponent("Contents/MacOS/" + exe)
         guard binary.resolvingSymlinksInPath().path.hasPrefix(url.resolvingSymlinksInPath().path + "/") else { throw CloneFailure.invalid("主程序不能指向应用外部") }
         let frameworks = (try? FileManager.default.contentsOfDirectory(atPath: url.appendingPathComponent("Contents/Frameworks").path)) ?? []
