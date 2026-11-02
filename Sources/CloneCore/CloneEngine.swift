@@ -76,6 +76,9 @@ public struct CloneEngine {
             }
             let preserveMain = config.recipe.preserveMainExecutableName == true
             try ProcessNames.rename(in: staging, main: main, name: config.name, renameMain: !preserveMain)
+            if ["electron", "chromium"].contains(config.recipe.appType) && !preserveMain {
+                try fixElectronHelpers(staging, originalName: info.executable, newName: config.name)
+            }
             if !useDylib {
                 if needsHook {
                     try RuntimeBuilder.compile(String(contentsOf: Assets.root.appendingPathComponent("Isolation.m"), encoding: .utf8), output: frameworks.appendingPathComponent("libatbclone_hook.dylib"), library: true, objc: true)
@@ -134,6 +137,37 @@ public struct CloneEngine {
                 plist["AppleLanguages"] = [config.language]; plist["AppleLocale"] = RuntimeBuilder.localeID(config.language)
                 try Plist.write(plist, to: file)
             }
+        }
+    }
+    // Electron looks for helpers by name: "{mainExeName} Helper.app", "{mainExeName} Helper (GPU).app" etc.
+    // ProcessNames.rename renames binaries inside helpers but not the .app directories themselves.
+    // This fixes both so Electron's helper lookup succeeds.
+    private func fixElectronHelpers(_ app: URL, originalName: String, newName: String) throws {
+        let fm = FileManager.default
+        let frameworksDir = app.appendingPathComponent("Contents/Frameworks")
+        guard let items = try? fm.contentsOfDirectory(at: frameworksDir, includingPropertiesForKeys: nil) else { return }
+        for item in items where item.pathExtension == "app" {
+            let basename = item.deletingPathExtension().lastPathComponent
+            guard basename.hasPrefix(originalName + " Helper") else { continue }
+            let suffix = String(basename.dropFirst(originalName.count)) // " Helper" or " Helper (GPU)" etc.
+            let newBasename = newName + suffix
+            let macosDir = item.appendingPathComponent("Contents/MacOS")
+            // ProcessNames.rename put the binary at "{newName}-{basename}" — correct it to "{newBasename}"
+            let wrongExe = macosDir.appendingPathComponent(newName + "-" + basename)
+            let correctExe = macosDir.appendingPathComponent(newBasename)
+            if fm.fileExists(atPath: wrongExe.path) {
+                try fm.moveItem(at: wrongExe, to: correctExe)
+                let oldSymlink = macosDir.appendingPathComponent(basename)
+                if (try? oldSymlink.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true {
+                    try fm.removeItem(at: oldSymlink); try fm.createSymbolicLink(atPath: oldSymlink.path, withDestinationPath: newBasename)
+                }
+            }
+            let plistURL = item.appendingPathComponent("Contents/Info.plist")
+            if var plist = try? Plist.read(plistURL) {
+                plist["CFBundleExecutable"] = newBasename; plist["CFBundleName"] = newBasename; plist["CFBundleDisplayName"] = newBasename
+                try Plist.write(plist, to: plistURL)
+            }
+            try fm.moveItem(at: item, to: frameworksDir.appendingPathComponent(newBasename + ".app"))
         }
     }
     private func updateHelperIDs(_ app: URL, originalID: String, newID: String) throws {
