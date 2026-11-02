@@ -35,6 +35,8 @@ public struct CloneEngine {
         metadata["CFBundleName"] = config.displayName
         metadata["CFBundleDisplayName"] = config.displayName
         metadata.removeValue(forKey: "TeamIdentifier"); metadata.removeValue(forKey: "LSHasLocalizedDisplayName")
+        // Electron verifies app.asar SHA256 against this key at startup; remove so ad-hoc re-signing doesn't crash.
+        metadata.removeValue(forKey: "ElectronAsarIntegrity")
         if config.recipe.stripURLs || config.recipe.lark || config.recipe.chatgpt { metadata.removeValue(forKey: "CFBundleURLTypes") }
         // Use installed bytes on update; the original selected file may no longer exist.
         let installedIcon = destination.appendingPathComponent("Contents/Resources/ATBCloneIcon.icns")
