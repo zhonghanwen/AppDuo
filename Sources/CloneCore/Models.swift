@@ -38,6 +38,7 @@ public struct Recipe: Identifiable, Codable, Sendable {
     public var cef = false
     public var lark = false
     public var chatgpt = false
+    public var isolateHome = false
     public var stripURLs = false
     public var injection: Injection = .auto
     // Missing in older saved recipes; nil keeps the existing rename behavior.

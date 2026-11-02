@@ -15,6 +15,7 @@ public enum Recipes {
         r.cef = d["patch_cef"] as? Bool ?? false
         r.lark = d["patch_lark_isolation"] as? Bool ?? false
         r.chatgpt = d["patch_chatgpt_isolation"] as? Bool ?? false
+        r.isolateHome = d["isolate_home"] as? Bool ?? false
         r.stripURLs = d["strip_url_schemes"] as? Bool ?? false
         r.injection = Injection(rawValue: d["injection_strategy"] as? String ?? "auto") ?? .auto
         r.preserveMainExecutableName = d["preserve_main_executable_name"] as? Bool ?? false

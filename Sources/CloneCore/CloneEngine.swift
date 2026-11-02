@@ -65,7 +65,7 @@ public struct CloneEngine {
             let library = "@executable_path/../Frameworks/libatbclone_env.dylib"
             let raw = try Data(contentsOf: main, options: .mappedIfSafe)
             let injected = try? MachO.inject(raw, library: library)
-            let needsHook = config.recipe.lark || config.recipe.chatgpt
+            let needsHook = config.recipe.lark || config.recipe.chatgpt || config.recipe.isolateHome || config.recipe.bundleID.contains("antigravity")
             // Cocoa language is set in preferences; it must not force exec-based launching,
             // which breaks the process identity used by notification services.
             let useDylib = config.injection == .dylib || (config.injection == .auto && config.recipe.arguments.isEmpty && !["chromium", "electron"].contains(config.recipe.appType) && !needsHook && injected != nil)
